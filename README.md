@@ -44,6 +44,7 @@ Outputs:
 - `artifacts/sycophancy_supervised_train.npz`, `artifacts/sycophancy_supervised_val.npz` (prompt/response activations + labels)
 - `artifacts/sycophancy_supervised_train.jsonl`, `artifacts/sycophancy_supervised_val.jsonl` (labels + metadata)
 If you need the merged hidden-state format used by older notebooks, rename/copy these to `artifacts/llama2_hidden_states_{train,val}.npz` or adjust the notebook paths accordingly.
+The script uses `labeler.deterministic_label` to assign sycophancy labels deterministically.
 
 1) **Raw vs. centered accuracy table & per-layer PCA panels**
    - Ensure caches from step 0 exist (or point the notebook to `artifacts/sycophancy_supervised_{train,val}.npz`).
