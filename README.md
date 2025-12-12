@@ -1,6 +1,6 @@
 # Trustworthy Project — Reproducibility Guide
 
-This folder captures the executed notebooks, cached activations, vectors, and scripts needed to regenerate the key figures and metrics used in the sycophancy steering analysis. Everything below is self-contained and operates only on cached artifacts (no new forward passes required).
+This folder captures the executed notebooks, scripts, and plots needed to reproduce the key figures and metrics for sycophancy steering. To keep the repository pushable to GitHub, large activation caches (.npz) are **not** tracked; instead, scripts are provided to regenerate them. Follow the steps below to rebuild the data and reproduce every figure/table.
 
 ## Contents
 - `notebooks/`
@@ -9,14 +9,15 @@ This folder captures the executed notebooks, cached activations, vectors, and sc
   - `template_generalization_improved.executed.ipynb`: Template-generalization probe and projection diagnostics; saves `template_generalization_projection_hist.png` and stats CSV.
 - `scripts/`
   - `combine_layer_pca_grid.py`: Assembles per-layer PCA PNGs into the combined grid `layer_raw_vs_centered_grid_clean.png`.
+  - `compute_sycophancy_cache.py`: Runs the model to produce hidden-state caches and deterministic labels for train/val (requires GPU).
+- `labeler.py`: Deterministic parsing function (`improved_label`) used by the notebooks/scripts.
 - `artifacts/`
-  - Cached activations: `llama2_hidden_states_train.npz`, `llama2_hidden_states_val.npz` (layers 20/26/28, 4096 dims).
-  - Steering vectors: `llama2_layer20/26/28_supervised_vector.npy` (unit-norm centered vectors).
+  - Steering vectors (small): `llama2_layer20/26/28_supervised_vector.npy`.
   - PCA panels: `layer_20/26/28_raw_pca.png`, `layer_20/26/28_centered_pca.png`, combined `layer_raw_vs_centered_grid.png` and `_clean.png`.
   - Projection diagnostics: `llama2_layer26_val_projection_hist.png`, `llama2_layer26_projection_stats.json`, `template_generalization_projection_hist.png`, `template_generalization_projection_stats.csv`.
-  - Hidden-state derivatives for binary probes: `llama2_layer*_affirm_vs_question.npy`, `llama2_layer*_deny_vs_question.npy` (generated in the fulltrain notebook).
-- `data/splits/`: Deterministic JSONL splits used throughout (`sycophancy_eval_answer_train.jsonl`, `..._val.jsonl`).
-- `beam_cache/`: Original Beam run caches (`hidden_states.npz`, `metadata.json`) used by the fulltrain notebook.
+  - NOTE: Large activation caches (`llama2_hidden_states_{train,val}.npz`) are intentionally **omitted** to satisfy GitHub size limits—regenerate them via `scripts/compute_sycophancy_cache.py`.
+- `data/splits/`: Deterministic JSONL splits (`sycophancy_eval_answer_train.jsonl`, `..._val.jsonl`).
+- `beam_cache/metadata.json`: Template/question metadata (small) from the Beam run; the large hidden-state file is removed.
 
 ## Environment
 Python 3.9+ with `transformers`, `torch`, `numpy`, `pandas`, `scikit-learn`, `matplotlib`, `tqdm`, `Pillow`. SentencePiece is required for the Llama tokenizer.
@@ -28,9 +29,24 @@ source .venv/bin/activate
 pip install torch transformers sentencepiece numpy pandas scikit-learn matplotlib tqdm pillow
 ```
 
-## Reproducing Figures and Tables
+## Reproducing Data, Figures, and Tables
+
+### 0) Regenerate activation caches (required before notebooks)
+- Requires GPU and a valid Hugging Face token (`HF_TOKEN` env var).
+- Defaults to layers `20,26,28` and model `meta-llama/Llama-2-7b-hf` (override via env).
+```bash
+export HF_TOKEN=YOUR_HF_TOKEN
+export MODEL_NAME=meta-llama/Llama-2-7b-hf
+export TARGET_LAYERS=20,26,28
+python scripts/compute_sycophancy_cache.py
+```
+Outputs:
+- `artifacts/sycophancy_supervised_train.npz`, `artifacts/sycophancy_supervised_val.npz` (prompt/response activations + labels)
+- `artifacts/sycophancy_supervised_train.jsonl`, `artifacts/sycophancy_supervised_val.jsonl` (labels + metadata)
+If you need the merged hidden-state format used by older notebooks, rename/copy these to `artifacts/llama2_hidden_states_{train,val}.npz` or adjust the notebook paths accordingly.
 
 1) **Raw vs. centered accuracy table & per-layer PCA panels**
+   - Ensure caches from step 0 exist (or point the notebook to `artifacts/sycophancy_supervised_{train,val}.npz`).
    - Open `notebooks/template_controlling_final_fulltrain.executed.ipynb` and re-run the metric/report cells, or convert via nbconvert:
    ```bash
    jupyter nbconvert --to notebook --execute notebooks/template_controlling_final_fulltrain.executed.ipynb \
@@ -47,19 +63,20 @@ pip install torch transformers sentencepiece numpy pandas scikit-learn matplotli
    - Output: `artifacts/layer_raw_vs_centered_grid_clean.png`.
 
 3) **Projection histogram/statistics (validation, layer 26)**
+   - Ensure caches from step 0 exist.
    - Open `notebooks/sycophancy_supervised_vector_remote.executed.ipynb` and run the projection/ROC cells. They read:
-     - `artifacts/llama2_hidden_states_{train,val}.npz`
-     - `artifacts/llama2_layer26_supervised_vector.npy`
+     - `artifacts/sycophancy_supervised_{train,val}.npz` (or the renamed `llama2_hidden_states_{train,val}.npz`)
+     - `artifacts/llama2_layer26_supervised_vector.npy` (small, already included)
    - Outputs: `artifacts/llama2_layer26_val_projection_hist.png`, `artifacts/llama2_layer26_projection_stats.json`.
 
 4) **Template generalization projection histogram**
-   - Open `notebooks/template_generalization_improved.executed.ipynb` and run the template-generalization section.
+   - Open `notebooks/template_generalization_improved.executed.ipynb` and run the template-generalization section (requires caches from step 0).
    - Outputs: `artifacts/template_generalization_projection_hist.png`, `artifacts/template_generalization_projection_stats.csv`.
 
 5) **Data dependencies**
-   - All notebooks expect the JSONL splits in `data/splits/` and the cached activations/vectors in `artifacts/`. No additional downloads or forward passes are required to regenerate the reported figures.
+   - Notebooks expect: `data/splits/*.jsonl` (included), regenerated caches in `artifacts/` from step 0, steering vectors (included), and the deterministic parser in `labeler.py`.
 
 ## Notes
-- The `.executed.ipynb` notebooks already contain outputs. Re-running them is optional unless you want to regenerate plots from scratch.
-- All steering/probe analyses in this folder operate on cached activations; they will not contact external APIs.
-
+- The `.executed.ipynb` notebooks already contain outputs; re-run only if you regenerate caches.
+- Large `.npz` activation caches are intentionally omitted to satisfy GitHub limits; regenerate them as described in step 0.
+- Steering/probe analyses operate on cached activations after you regenerate them; no external API calls occur during notebook execution.
