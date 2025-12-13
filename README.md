@@ -20,7 +20,7 @@ This folder captures the executed notebooks, scripts, and plots needed to reprod
 - `beam_cache/metadata.json`: Template/question metadata (small) from the Beam run; the large hidden-state file is removed.
 
 ## Environment
-Python 3.9+ with `transformers`, `torch`, `numpy`, `pandas`, `scikit-learn`, `matplotlib`, `tqdm`, `Pillow`. SentencePiece is required for the Llama tokenizer.
+Python 3.11+ with `transformers`, `torch`, `numpy`, `pandas`, `scikit-learn`, `matplotlib`, `tqdm`, `Pillow`. SentencePiece is required for the Llama tokenizer.
 
 Example setup (CPU/MPS, no new forward passes needed):
 ```bash
@@ -30,6 +30,8 @@ pip install torch transformers sentencepiece numpy pandas scikit-learn matplotli
 ```
 
 ## Reproducing Data, Figures, and Tables
+
+Most of the results can be run by executing the `main_results.ipynb` notebook. However, to regenerate the large activation caches and reproduce all figures/tables, follow these steps:
 
 ### 0) Regenerate activation caches (required before notebooks)
 - Requires GPU and a valid Hugging Face token (`HF_TOKEN` env var).
