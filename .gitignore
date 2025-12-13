@@ -1,0 +1,5 @@
+local_cache/**
+local_cache_bak/**
+
+.ipynb_checkpoints/
+__pycache__/
